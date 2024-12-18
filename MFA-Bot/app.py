@@ -14,13 +14,13 @@ import json
 # =======================
 
 logging.basicConfig(level=logging.DEBUG)
-logging.getLogger('werkzeug').setLevel(logging.WARNING)
+logging.getLogger('werkzeug').setLevel(logging.DEBUG)
 logging.getLogger('signalwire').setLevel(logging.DEBUG)
 
 load_dotenv()
 
 app = Flask(__name__)
-app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 
 PROJECT_ID = os.getenv("SIGNALWIRE_PROJECT_ID")
 TOKEN = os.getenv("SIGNALWIRE_TOKEN")
@@ -31,6 +31,7 @@ NGROK_DOMAIN = os.getenv("NGROK_DOMAIN")
 NGROK_PATH = os.getenv("NGROK_PATH")
 HTTP_USERNAME = os.getenv("HTTP_USERNAME")
 HTTP_PASSWORD = os.getenv("HTTP_PASSWORD")
+DEBUG_WEBOOK_URL = os.getenv("DEBUG_WEBOOK_URL")
 
 required_vars = [
     "SIGNALWIRE_PROJECT_ID",
@@ -53,6 +54,11 @@ NGROK_URL = f"https://{NGROK_DOMAIN}"
 logging.debug(f"SIGNALWIRE_SPACE: {SPACE}")
 logging.debug(f"SIGNALWIRE_FROM_NUMBER: {FROM_NUMBER}")
 logging.debug(f"NGROK_DOMAIN: {NGROK_DOMAIN}")
+logging.debug(f"DEBUG_WEBOOK_URL: {DEBUG_WEBOOK_URL}")
+
+# =======================
+# Helper Classes
+# =======================
 
 class SignalWireMFA:
     def __init__(self, project_id: str, token: str, space: str, from_number: str):
@@ -69,15 +75,12 @@ class SignalWireMFA:
             raise
 
     def send_mfa(self, to_number: str) -> dict:
-        """
-        Sends MFA code using {code} so user receives the code in the SMS.
-        """
         try:
             url = f"{self.base_url}/mfa/sms"
             payload = {
                 "to": to_number,
                 "from": self.from_number,
-                "message": "Here is your code: {code}",
+                "message": "Here is your code: ",
                 "token_length": 6,
                 "max_attempts": 3,
                 "allow_alphas": False,
@@ -85,13 +88,7 @@ class SignalWireMFA:
             }
             headers = {"Content-Type": "application/json"}
             logging.debug(f"Sending MFA from {self.from_number} to {to_number}")
-            logging.debug(f"Payload: {payload}")
-            response = requests.post(
-                url,
-                json=payload,
-                auth=(self.project_id, self.token),
-                headers=headers
-            )
+            response = requests.post(url, json=payload, auth=(self.project_id, self.token), headers=headers)
             response.raise_for_status()
             data = response.json()
             logging.debug(f"Sent MFA code to {to_number}, Response: {data}")
@@ -101,21 +98,12 @@ class SignalWireMFA:
             raise
 
     def verify_mfa(self, mfa_id: str, token: str) -> dict:
-        """
-        Verifies the MFA code using mfa_id and token.
-        Expect 'success': true if correct token, false otherwise.
-        """
         try:
             verify_url = f"{self.base_url}/mfa/{mfa_id}/verify"
             payload = {"token": token}
             headers = {"Content-Type": "application/json"}
             logging.debug(f"Verifying MFA with ID {mfa_id} using token {token}")
-            response = requests.post(
-                verify_url,
-                json=payload,
-                auth=(self.project_id, self.token),
-                headers=headers
-            )
+            response = requests.post(verify_url, json=payload, auth=(self.project_id, self.token), headers=headers)
             response.raise_for_status()
             decoded_response = response.json()
             logging.debug(f"Verification response: {decoded_response}")
@@ -124,8 +112,16 @@ class SignalWireMFA:
             logging.error(f"Error during verification: {e}")
             return {"success": False, "message": "HTTP error during verification."}
 
+# =======================
+# Initialization
+# =======================
+
 mfa_util = SignalWireMFA(PROJECT_ID, TOKEN, SPACE, FROM_NUMBER)
 swaig = SWAIG(app, auth=(HTTP_USERNAME, HTTP_PASSWORD))
+
+# =======================
+# Helper Functions
+# =======================
 
 def is_valid_uuid(uuid_to_test, version=4):
     regex = {
@@ -136,6 +132,10 @@ def is_valid_uuid(uuid_to_test, version=4):
     return bool(pattern and re.match(pattern, uuid_to_test))
 
 LAST_MFA_ID = None
+
+# =======================
+# Endpoints
+# =======================
 
 @swaig.endpoint(
     "Send an MFA code to a specified phone number.",
@@ -151,14 +151,10 @@ def send_mfa_code(to_number: str, meta_data: dict = None, **kwargs) -> dict:
             raise ValueError("MFA ID not found in response.")
         LAST_MFA_ID = mfa_id
         logging.debug(f"Full send_mfa response: {response}")
-
-        if response.get("success") is True:
-            return {"success": True, "message": "6 digit number sent", "data": {}}, 200
-        else:
-            return {"success": False}, 401
+        return {"success": True, "message": "6 digit number sent"}, 200
     except Exception as e:
         logging.error(f"Error sending MFA code: {e}")
-        return {"success": False}, 500
+        return {"success": False, "message": "Failed to send MFA code"}, 500
 
 @swaig.endpoint(
     "Verify an MFA code using token.",
@@ -166,65 +162,29 @@ def send_mfa_code(to_number: str, meta_data: dict = None, **kwargs) -> dict:
 )
 def verify_mfa_code(token: str, meta_data: dict = None, **kwargs) -> dict:
     """
-    Verifies the MFA code using the token only. The returned response is exactly what verify_mfa returns.
-    The 'response' is now the result of mfa_util.verify_mfa(LAST_MFA_ID, token).
+    Verifies the MFA code using the token and mfa_id.
+    The mfa_id will also be returned in the response for the AI agent.
     """
     global LAST_MFA_ID
     logging.debug(f"Received token: {token}")
 
     if not LAST_MFA_ID or not is_valid_uuid(LAST_MFA_ID):
         logging.error("No valid mfa_id stored or send_mfa_code not called first.")
-        # Return a failure response if no mfa_id or invalid mfa_id
-        failure_response = {"success": False, "message": "No valid MFA session."}
-        return failure_response, 401
+        return {"success": False, "message": "No valid MFA session."}, 401
 
     try:
-        # Get the actual verification response from verify_mfa
+        logging.debug(f"Using mfa_id: {LAST_MFA_ID} to verify token: {token}")
         verification_response = mfa_util.verify_mfa(LAST_MFA_ID, token)
-        logging.debug(f"Full verify_mfa response: {verification_response}")
+        logging.debug(f"Using mfa_id: {LAST_MFA_ID} for verification with token: {token}")
+        verification_response["mfa_id"] = LAST_MFA_ID
+        logging.debug(f"Verification response: {verification_response}")
 
-        # If success is True, return as is with 200, else 401
-        if verification_response.get("success") is True:
-            return verification_response, 200
-        else:
-            return verification_response, 401
+        if verification_response.get("success"):
+      #      logging.debug(f"Returning response to AI agent: {{'success': False, 'message': 'Invalid MFA code. Please try again.', 'mfa_id': '{LAST_MFA_ID}'}}")
+            return {"success": False, "message": "Invalid MFA code. Please try again.", "mfa_id": LAST_MFA_ID}, 401
     except Exception as e:
         logging.error(f"Error verifying MFA code: {e}")
-        # On internal error, return a generic failure response with 500
-        error_response = {"success": False, "message": "Internal error"}
-        return error_response, 500
-
-@swaig.endpoint(
-    "MFA failed response",
-    response=SWAIGArgument("object", "This parameter should be {'success': False, 'message': 'HTTP error during verification.'}", required=True)
-)
-def mfa_failed_response(response: dict, meta_data: dict = None, **kwargs) -> dict:
-    """
-    Returns a hardcoded failed response for MFA verification.
-    
-    Parameters:
-      response (object): Should be {'success': False, 'message': 'HTTP error during verification.'}
-      
-    Description:
-      Simulates a verification failure scenario by returning this response object.
-    """
-    return response, 200
-
-@swaig.endpoint(
-    "MFA success response",
-    response=SWAIGArgument("object", "This parameter should be {'success': True}", required=True)
-)
-def mfa_success_response(response: dict, meta_data: dict = None, **kwargs) -> dict:
-    """
-    Returns a hardcoded success response for MFA verification.
-    
-    Parameters:
-      response (object): Should be {'success': True}
-      
-    Description:
-      Simulates a verification success scenario by returning this response object.
-    """
-    return response, 200
+        return {"success": False, "message": "Internal server error occurred during verification."}, 500
 
 @app.route("/swaig", methods=["POST", "GET"])
 def handle_swaig():
@@ -246,7 +206,6 @@ def handle_swaig():
         logging.debug(f"Delegating to SWAIG handler for function: {function_name}")
         return swaig.handle_request(data)
     else:
-        # GET request returns signatures for convenience
         signatures = swaig.get_signatures()
         logging.debug("Returning SWAIG signatures via GET.")
         return jsonify(signatures)
@@ -261,13 +220,7 @@ if __name__ == "__main__":
         )
         logging.debug("Ngrok auth token configured successfully.")
 
-        ngrok_cmd = [
-            NGROK_PATH,
-            "http",
-            "--domain=" + NGROK_DOMAIN,
-            "5000"
-        ]
-
+        ngrok_cmd = [NGROK_PATH, "http", "--domain=" + NGROK_DOMAIN, "5000"]
         ngrok_process = subprocess.Popen(ngrok_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         logging.info(f" * Started ngrok tunnel at {NGROK_URL}")
         app.run(host="0.0.0.0", port=5000)
