@@ -61,11 +61,11 @@ If any of these are not already installed, the command above will take care of i
    ```
 
 8. **Set Your Ngrok URL in Botworks**
-   Obtain your ngrok URL (created during the installation process) and set it up in the **Botworks** platform to enable external connectivity.
+   Obtain your ngrok URL that was created during the installation process and set it up in the **Botworks** platform to enable external connectivity.
 
 ---
 
 
 
-Now you're ready to use the **MFA-Bot** with **Botworks**! 🚀
+Now you're ready to use **MFA-Bot** with **Botworks**! 🚀
 
