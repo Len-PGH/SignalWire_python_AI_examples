@@ -1,0 +1,14 @@
+[Unit]
+Description=Run app.py as mfauser in a python virtual environment
+After=network.target
+
+[Service]
+User=mfauser
+Group=mfauser
+WorkingDirectory=/home/mfauser/SignalWire_python_AI_examples/MFA-Bot
+ExecStart=/home/mfauser/SignalWire_python_AI_examples/MFA-Bot/venv/bin/python /home/mfauser/SignalWire_python_AI_examples/MFA-Bot/app.py
+Restart=always
+Environment="PATH=/home/mfauser/SignalWire_python_AI_examples/MFA-Bot/venv/bin:/usr/bin:/bin"
+
+[Install]
+WantedBy=multi-user.target
