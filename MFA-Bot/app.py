@@ -180,7 +180,7 @@ def verify_mfa_code(token: str, meta_data: dict = None, **kwargs) -> dict:
         logging.debug(f"Verification response: {verification_response}")
 
         if verification_response.get("success"):
-      #      logging.debug(f"Returning response to AI agent: {{'success': False, 'message': 'Invalid MFA code. Please try again.', 'mfa_id': '{LAST_MFA_ID}'}}")
+
             return {"success": False, "message": "Invalid MFA code. Please try again.", "mfa_id": LAST_MFA_ID}, 401
     except Exception as e:
         logging.error(f"Error verifying MFA code: {e}")
@@ -210,8 +210,11 @@ def handle_swaig():
         logging.debug("Returning SWAIG signatures via GET.")
         return jsonify(signatures)
 
+
 if __name__ == "__main__":
+    ngrok_process = None  # Initialize ngrok_process to None
     try:
+        # Attempt to configure ngrok with the provided auth token
         subprocess.run(
             [NGROK_PATH, "config", "add-authtoken", NGROK_AUTH_TOKEN],
             check=True,
@@ -220,15 +223,26 @@ if __name__ == "__main__":
         )
         logging.debug("Ngrok auth token configured successfully.")
 
-        ngrok_cmd = [NGROK_PATH, "http", "--domain=" + NGROK_DOMAIN, "5000"]
+        # Attempt to start ngrok tunnel on port 8888
+        ngrok_cmd = [NGROK_PATH, "http", "--domain=" + NGROK_DOMAIN, "8888"]
         ngrok_process = subprocess.Popen(ngrok_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         logging.info(f" * Started ngrok tunnel at {NGROK_URL}")
-        app.run(host="0.0.0.0", port=5000)
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to configure ngrok: {e.stderr.decode().strip()}")
+        logging.warning("Continuing to run Flask app without ngrok.")
+    except FileNotFoundError:
+        logging.error(f"Ngrok not found at path: {NGROK_PATH}")
+        logging.warning("Continuing to run Flask app without ngrok.")
     except Exception as e:
-        logging.error(f"Error starting ngrok or Flask app: {e}")
+        logging.error(f"Unexpected error while starting ngrok: {e}")
+        logging.warning("Continuing to run Flask app without ngrok.")
     finally:
-        if 'ngrok_process' in locals():
-            ngrok_process.terminate()
-            logging.info("Ngrok process terminated.")
+        try:
+            # Start the Flask app on port 8888 regardless of ngrok's status
+            app.run(host="0.0.0.0", port=8888)
+        except KeyboardInterrupt:
+            logging.info("Shutting down Flask app.")
+        finally:
+            if ngrok_process:
+                ngrok_process.terminate()
+                logging.info("Ngrok process terminated.")
