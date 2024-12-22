@@ -2,7 +2,7 @@
 REM ===============================================================
 REM Batch Script to Build Docker Image and Manage Containers
 REM Options:
-REM   1) Spin off a new container
+REM   1) Create a new container
 REM   2) Start an existing container
 REM   3) List and stop a running container
 REM   4) Exit
@@ -37,7 +37,7 @@ echo.
 echo ============================================
 echo              Main Menu
 echo ============================================
-echo 1. Spin off a new container
+echo 1. Create a new container
 echo 2. Start an existing container
 echo 3. List and stop a running container
 echo 4. Exit
