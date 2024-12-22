@@ -3,25 +3,30 @@ REM ===============================================================
 REM Batch Script to Build Docker Image and Manage Containers
 REM ===============================================================
 
-REM Configuration: Set the wait time (in seconds) after starting a container
-set WAIT_TIME=5
+REM Enable delayed variable expansion
+setlocal EnableDelayedExpansion
+
+REM Configuration: Wait time (in seconds) after starting a container
+set "WAIT_TIME=5"
+
+REM Configuration: Maximum number of tries to start the container
+set "MAX_TRIES=4"
 
 REM Step 1: Build the Docker image
 echo.
 echo ============================================
 echo Building Docker image 'mfa-bot-image'...
 echo ============================================
-docker build -t mfa-bot-image .
-
-REM Check if the build was successful
-IF %ERRORLEVEL% NEQ 0 (
+docker build -t "mfa-bot-image" .
+if %ERRORLEVEL% NEQ 0 (
     echo.
     echo Docker build failed. Please check the Dockerfile and try again.
     pause
+    endlocal
     exit /b %ERRORLEVEL%
 )
 
-REM Step 2: Display the menu for user choice
+REM Step 2: Main Menu
 :menu
 echo.
 echo ============================================
@@ -33,9 +38,8 @@ echo 3. Exit
 echo ============================================
 set /p choice=Enter your choice (1, 2, or 3): 
 
-REM Handle user choice
-if "%choice%"=="1" goto run_new_container
-if "%choice%"=="2" goto start_existing_container
+if "%choice%"=="1" goto create_new_container
+if "%choice%"=="2" goto start_container_main
 if "%choice%"=="3" goto end
 
 echo.
@@ -43,142 +47,155 @@ echo Invalid choice. Please enter 1, 2, or 3.
 goto menu
 
 REM ===============================================================
-REM Option 1: Spin off a new container
+REM Option 1: Create a New Container
 REM ===============================================================
-:run_new_container
+:create_new_container
 echo.
 echo ============================================
-echo         Spinning Off a New Container
+echo         Create a New Container
 echo ============================================
-
-REM Prompt for container name with a default value
 set /p containerName=Enter name for the new container (default: mfa-bot-container): 
 
-REM Assign default name if none provided
-if "%containerName%"=="" set containerName=mfa-bot-container
+if "%containerName%"=="" set "containerName=mfa-bot-container"
 
-REM Check if a container with the given name already exists
+echo Checking if container name '%containerName%' is already used...
 docker ps -a --format "{{.Names}}" | findstr /I /C:"%containerName%" >nul
-IF %ERRORLEVEL% EQU 0 (
+if %ERRORLEVEL%==0 (
     echo.
     echo A container named '%containerName%' already exists.
-    echo Please choose a different name or remove the existing container.
+    echo Please choose another name or remove the existing container.
     pause
     goto menu
 )
 
-REM Run the new container interactively with Bash shell
 echo.
-echo Running a new container '%containerName%' with Bash shell...
-docker run -it --name %containerName% mfa-bot-image bash
+echo Creating and running container '%containerName%' with Bash shell...
+docker run -it --name "%containerName%" "mfa-bot-image" bash
 
 goto menu
 
 REM ===============================================================
-REM Option 2: Start an Existing Container
+REM Option 2: Start an Existing Container (Lists ALL Containers)
 REM ===============================================================
-:start_existing_container
+:start_container_main
 echo.
 echo ============================================
-echo        Starting an Existing Container
+echo    Start an Existing Container (All)
 echo ============================================
 
-REM Retrieve and list all containers based on 'mfa-bot-image'
 echo.
-echo Fetching list of existing containers based on 'mfa-bot-image'...
+echo Retrieving all containers on the system...
 echo.
 
-REM Initialize counter
-setlocal enabledelayedexpansion
-set i=1
+set /a count=1
 
-REM Clear any previous container variables
-for /L %%G in (1,1,1000) do (
-    set "container%%G="
+FOR /L %%X IN (1,1,1000) DO (
+    set "container%%X="
 )
 
-REM Loop through each container name and display with a number
-for /f "tokens=*" %%a in ('docker ps -a --filter "ancestor=mfa-bot-image" --format "{{.Names}}"') do (
-    set "container!i!=%%a"
-    echo !i!. %%a
-    set /a i+=1
+FOR /f "usebackq tokens=* delims=" %%A IN (`docker ps -a --format "{{.Names}}"`) DO (
+    set "container!count!=%%A"
+    echo !count!. %%A
+    set /a count+=1
 )
 
-REM Calculate the total number of containers found
-set max=%i%
-
-REM If no containers are found, inform the user and return to menu
-if %max% EQU 1 (
+if %count%==1 (
     echo.
-    echo No existing containers found for image 'mfa-bot-image'.
-    echo Returning to the main menu.
+    echo No containers exist on this system.
     pause
-    endlocal
     goto menu
 )
 
-REM Adjust max to reflect actual number of containers
-set /a max-=1
-
-REM Prompt user to select a container to start
+set /a max=%count%-1
 echo.
 set /p selection=Enter the number of the container to start: 
 
-REM Validate the user's selection
-set /a valid=0
-if "%selection%"=="" goto invalid_selection
-REM Check if the input is a number
-set /a num=%selection% >nul 2>&1
-IF %ERRORLEVEL% NEQ 0 goto invalid_selection
-REM Check if the number is within the valid range
-if %selection% GEQ 1 if %selection% LEQ %max% set valid=1
+set /a check=0
+if "%selection%"=="" goto invalid_choice
 
-if %valid% NEQ 1 goto invalid_selection
+set /a numeric=%selection% >nul 2>&1
+if %ERRORLEVEL% NEQ 0 goto invalid_choice
 
-REM Retrieve the container name based on user selection
-call set container=%%container%selection%%%%
+if %selection% GEQ 1 if %selection% LEQ %max% set /a check=1
 
-REM Check if the container is already running
-docker ps --format "{{.Names}}" | findstr /I /C:"%container%" >nul
-IF %ERRORLEVEL% NEQ 0 (
-    REM Start the container if it's not running
+if %check%==0 goto invalid_choice
+
+call set "chosen=%%container%selection%%%%"
+
+echo.
+echo Checking if container '%chosen%' is running...
+docker ps --format "{{.Names}}" | findstr /I /C:"%chosen%" >nul
+if %ERRORLEVEL%==0 (
     echo.
-    echo Starting container '%container%'...
-    docker start %container%
-    IF %ERRORLEVEL% NEQ 0 (
-        echo.
-        echo Failed to start container '%container%'.
-        pause
-        endlocal
-        goto menu
-    )
-) ELSE (
-    echo.
-    echo Container '%container%' is already running.
+    echo Container '%chosen%' is already running.
+    goto container_running
 )
 
-REM Wait for the container to initialize
 echo.
-echo Waiting %WAIT_TIME% seconds for the container to initialize...
+echo Container '%chosen%' is not running. We will try to start it.
+
+REM Attempt multiple tries
+set /a tries=1
+
+:start_docker_loop
+if %tries% GTR %MAX_TRIES% (
+    echo.
+    echo We have tried %MAX_TRIES% times to start '%chosen%' without success.
+    echo Returning to main menu.
+    pause
+    goto cleanup_list
+)
+
+echo.
+echo Try #%tries%: Starting '%chosen%'...
+docker start "%chosen%" >start_stdout.txt 2>start_stderr.txt
+if %ERRORLEVEL%==0 (
+    echo Container '%chosen%' started successfully.
+    type start_stdout.txt
+    del start_stdout.txt
+    del start_stderr.txt
+    goto container_just_started
+) else (
+    echo Failed to start container '%chosen%' on try #%tries%.
+    type start_stderr.txt
+    del start_stdout.txt
+    del start_stderr.txt
+    set /a tries+=1
+    echo Waiting %WAIT_TIME% seconds before next try...
+    timeout /t %WAIT_TIME% /nobreak >nul
+    goto start_docker_loop
+)
+
+:container_just_started
+echo.
+echo Waiting %WAIT_TIME% seconds for '%chosen%' to get ready...
 timeout /t %WAIT_TIME% /nobreak >nul
 
-REM Open a Bash shell in the running container
+echo Checking if '%chosen%' is running now...
+docker ps --format "{{.Names}}" | findstr /I /C:"%chosen%" >nul
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo Container '%chosen%' still not running after start attempt.
+    echo Returning to menu.
+    pause
+    goto cleanup_list
+)
+
+:container_running
 echo.
-echo Opening Bash shell in container '%container%'...
-docker exec -it %container% bash
+echo Opening Bash shell in container '%chosen%'...
+docker exec -it "%chosen%" bash
 
 echo.
-echo Returned from Bash shell in container '%container%'.
+echo Returned from Bash shell in container '%chosen%'.
 pause
+:cleanup_list
 endlocal
 goto menu
 
-REM ===============================================================
-REM Handle Invalid Selection
-REM ===============================================================
-:invalid_selection
+:invalid_choice
 echo.
-echo Invalid selection. Please enter a valid number between 1 and %max%.
+echo Invalid selection. Please pick a valid container number between 1 and %max%.
 pause
 endlocal
 goto menu
@@ -189,7 +206,8 @@ REM ===============================================================
 :end
 echo.
 echo ============================================
-echo              Operation Completed
+echo           Operation Completed
 echo ============================================
 pause
+endlocal
 exit /b 0
