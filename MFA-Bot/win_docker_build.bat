@@ -1,15 +1,20 @@
 @echo off
 REM ===============================================================
 REM Batch Script to Build Docker Image and Manage Containers
+REM Options:
+REM   1) Spin off a new container
+REM   2) Start an existing container
+REM   3) List and stop a running container
+REM   4) Exit
 REM ===============================================================
 
 REM Enable delayed variable expansion
 setlocal EnableDelayedExpansion
 
-REM Configuration: Wait time (in seconds) after starting a container
+REM Configuration: Wait time (in seconds) for container readiness
 set "WAIT_TIME=5"
 
-REM Configuration: Maximum number of tries to start the container
+REM Configuration: Maximum number of tries to start a container
 set "MAX_TRIES=4"
 
 REM Step 1: Build the Docker image
@@ -26,24 +31,26 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b %ERRORLEVEL%
 )
 
-REM Step 2: Main Menu
+REM Main Menu
 :menu
 echo.
 echo ============================================
-echo                Main Menu
+echo              Main Menu
 echo ============================================
 echo 1. Spin off a new container
 echo 2. Start an existing container
-echo 3. Exit
+echo 3. List and stop a running container
+echo 4. Exit
 echo ============================================
-set /p choice=Enter your choice (1, 2, or 3): 
+set /p choice=Enter your choice (1, 2, 3, or 4): 
 
 if "%choice%"=="1" goto create_new_container
 if "%choice%"=="2" goto start_container_main
-if "%choice%"=="3" goto end
+if "%choice%"=="3" goto stop_container_main
+if "%choice%"=="4" goto end_script
 
 echo.
-echo Invalid choice. Please enter 1, 2, or 3.
+echo Invalid choice. Please enter 1, 2, 3, or 4.
 goto menu
 
 REM ===============================================================
@@ -75,7 +82,8 @@ docker run -it --name "%containerName%" "mfa-bot-image" bash
 goto menu
 
 REM ===============================================================
-REM Option 2: Start an Existing Container (Lists ALL Containers)
+REM Option 2: Start an Existing Container
+REM (Lists ALL Containers, then multi-try start)
 REM ===============================================================
 :start_container_main
 echo.
@@ -201,7 +209,84 @@ endlocal
 goto menu
 
 REM ===============================================================
-REM End of Script
+REM Option 3: List and Stop a **Running** Container
+REM ===============================================================
+:stop_container_main
+echo.
+echo ============================================
+echo   List and Stop a Running Container
+echo ============================================
+
+echo.
+echo Retrieving currently running containers...
+echo.
+
+setlocal enabledelayedexpansion
+set /a sCount=1
+
+FOR /L %%Z IN (1,1,1000) DO (
+    set "runCont%%Z="
+)
+
+REM Only running containers
+FOR /f "usebackq tokens=* delims=" %%R IN (`docker ps --format "{{.Names}}"`) DO (
+    set "runCont!sCount!=%%R"
+    echo !sCount!. %%R
+    set /a sCount+=1
+)
+
+if %sCount%==1 (
+    echo.
+    echo No running containers on this system.
+    pause
+    endlocal
+    goto menu
+)
+
+set /a sMax=%sCount%-1
+echo.
+set /p sPick=Enter the number of the running container to stop: 
+
+set /a sCheck=0
+if "%sPick%"=="" goto invalid_stop_choice
+
+set /a numericStop=%sPick% >nul 2>&1
+if %ERRORLEVEL% NEQ 0 goto invalid_stop_choice
+
+if %sPick% GEQ 1 if %sPick% LEQ %sMax% set /a sCheck=1
+
+if %sCheck%==0 goto invalid_stop_choice
+
+call set "stopName=%%runCont%sPick%%%%"
+
+echo.
+echo Attempting to stop container '%stopName%'...
+docker stop "%stopName%" >stop_stdout.txt 2>stop_stderr.txt
+if %ERRORLEVEL%==0 (
+    echo Container '%stopName%' stopped successfully.
+    type stop_stdout.txt
+    del stop_stdout.txt
+    del stop_stderr.txt
+) else (
+    echo Failed to stop container '%stopName%'.
+    type stop_stderr.txt
+    del stop_stdout.txt
+    del stop_stderr.txt
+)
+
+pause
+endlocal
+goto menu
+
+:invalid_stop_choice
+echo.
+echo Invalid selection. Must be between 1 and %sMax%.
+pause
+endlocal
+goto menu
+
+REM ===============================================================
+REM Option 4: End
 REM ===============================================================
 :end
 echo.
