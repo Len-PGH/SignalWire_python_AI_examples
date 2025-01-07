@@ -44,7 +44,7 @@ If any of these are not already installed, the command above will take care of i
 5. **Edit and Populate the `.env` Credentials**
    After the installation script completes, open the `.env` file to configure your credentials:
    ```bash
-   nano .env
+   cp changeme.env .env && nano .env
    ```
    Populate the required fields with your credentials (e.g., API keys, URLs, etc.) and save the file.
 
