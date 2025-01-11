@@ -1,14 +1,14 @@
 [Unit]
-Description=Run app.py as mfauser in a python virtual environment
+Description=Run app.py as bobby in a python virtual environment
 After=network.target
 
 [Service]
-User=mfauser
-Group=mfauser
-WorkingDirectory=/home/mfauser/SignalWire_python_AI_examples/MFA-Bot
-ExecStart=/home/mfauser/SignalWire_python_AI_examples/MFA-Bot/venv/bin/python /home/mfauser/SignalWire_python_AI_examples/MFA-Bot/app.py
+User=bobby
+Group=bobby
+WorkingDirectory=/home/bobby/SignalWire_python_AI_examples/bobbys_table
+ExecStart=/home/bobby/SignalWire_python_AI_examples/bobbys_table/venv/bin/python /home/bobby/SignalWire_python_AI_examples/bobbys_table/app.py
 Restart=always
-Environment="PATH=/home/mfauser/SignalWire_python_AI_examples/MFA-Bot/venv/bin:/usr/bin:/bin"
+Environment="PATH=/home/bobby/SignalWire_python_AI_examples/bobbys_table/venv/bin:/usr/bin:/bin"
 
 [Install]
 WantedBy=multi-user.target
