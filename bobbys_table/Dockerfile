@@ -31,7 +31,7 @@ RUN useradd -m -s /bin/bash bobby && \
 WORKDIR /home/bobby
 
 # Copy the entire repository into the container's 'bobby' home directory
-COPY . /home/bobby/SignalWire_python_AI_examples/bobbystable
+COPY . /home/bobby/SignalWire_python_AI_examples/bobby_stable
 
 # Change ownership of the copied files to 'bobby'
 RUN chown -R bobby:bobby /home/bobby/SignalWire_python_AI_examples
@@ -39,8 +39,8 @@ RUN chown -R bobby:bobby /home/bobby/SignalWire_python_AI_examples
 # Switch to 'bobby' to run subsequent commands
 USER bobby
 
-# Navigate to the bobbystable directory
-WORKDIR /home/bobby/SignalWire_python_AI_examples/bobbystable
+# Navigate to the bobby_stable directory
+WORKDIR /home/bobby/SignalWire_python_AI_examples/bobby_stable
 
 # Convert line endings of the install script to Unix format
 RUN dos2unix install_bobbys_table.sh
@@ -54,7 +54,7 @@ RUN ./install_bobbys_table.sh
 # Ensure the main Python script is executable
 RUN chmod +x app.py
 
-# Copy the .env file into the bobbystable directory
+# Copy the .env file into the bobby_stable directory
 
 COPY env.example /home/bobby/SignalWire_python_AI_examples/bobbys_table/.env
 
