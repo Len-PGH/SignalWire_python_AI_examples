@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ============================================================================
-# Bash Script: Build 'mfa-bot-image' and Manage Containers on Debian
+# Bash Script: Build 'bobbys_table_image' and Manage Containers on Debian
 #
-# 1) Create new container from 'mfa-bot-image'
+# 1) Create new container from 'bobbys_table_image'
 # 2) Start existing container (multi-try)
 # 3) List & stop a running container
 # 4) Exit
@@ -44,14 +44,14 @@ check_and_install_docker() {
 }
 
 # ----------------------------------------------------------------------------
-# 1. Build Docker Image (mfa-bot-image)
+# 1. Build Docker Image (bobbys_table_image)
 # ----------------------------------------------------------------------------
 build_image() {
   echo
   echo "============================================"
-  echo "Building Docker image 'mfa-bot-image'..."
+  echo "Building Docker image 'bobbys_table_image'..."
   echo "============================================"
-  if ! docker build -t "mfa-bot-image" .; then
+  if ! docker build -t "bobbys_table_image" .; then
     echo "Docker build failed. Check your Dockerfile and try again."
     read -rp "Press Enter to continue..."
     exit 1
@@ -95,7 +95,7 @@ main_menu() {
 }
 
 # ----------------------------------------------------------------------------
-# Option 1: Create a New Container from 'mfa-bot-image'
+# Option 1: Create a New Container from 'bobbys_table_image'
 # ----------------------------------------------------------------------------
 create_new_container() {
   echo
@@ -116,8 +116,8 @@ create_new_container() {
   fi
 
   echo
-  echo "Creating container '$containerName' from 'mfa-bot-image' with Bash..."
-  docker run -it --name "$containerName" "mfa-bot-image" bash
+  echo "Creating container '$containerName' from 'bobbys_table_image' with Bash..."
+  docker run -it --name "$containerName" "bobbys_table_image" bash
 }
 
 # ----------------------------------------------------------------------------
@@ -299,7 +299,7 @@ stop_running_container() {
 # (1) Check if Docker is installed; if not, offer to install with "apt-get install docker.io"
 check_and_install_docker
 
-# (2) Build Docker image 'mfa-bot-image'
+# (2) Build Docker image 'bobbys_table_image'
 build_image
 
 # (3) Main menu loop
