@@ -1,5 +1,6 @@
 from flask import Flask, jsonify
 from dotenv import load_dotenv
+from pyngrok import ngrok
 import logging
 import os
 from signalwire_swaig.core import SWAIG, SWAIGArgument
@@ -22,7 +23,6 @@ if os.environ.get('DEBUG'):
     os.environ['WERKZEUG_DEBUG_PIN'] = debug_pin
     logging.getLogger('werkzeug').setLevel(logging.DEBUG)
     print(f"Debugger PIN: {debug_pin}")
-
 
 load_dotenv()
 
@@ -130,7 +130,7 @@ def get_reservations_table_html():
     table_html += "</table>"
     return table_html
 
-#app route for the reservation page
+# Route for the reservation page
 @app.route('/swaig', methods=['GET'])
 @app.route('/', methods=['GET'])
 def serve_reservation_html():
@@ -162,4 +162,33 @@ def serve_reservation_html():
         return jsonify({"error": "Failed to serve HTML"}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=os.getenv("PORT", 5001), debug=os.getenv("DEBUG"))
+    ngrok_process = None  # Initialize ngrok_process to None
+    try:
+        # Attempt to configure ngrok with the provided auth token
+        ngrok_auth_token = os.getenv("NGROK_AUTH_TOKEN")
+        if ngrok_auth_token:
+            ngrok.set_auth_token(ngrok_auth_token)
+            logging.debug("Ngrok auth token configured successfully.")
+
+        # Start ngrok tunnel
+        port = int(os.getenv("PORT", 5001))
+        public_url = ngrok.connect(port).public_url
+        logging.info(f"Ngrok tunnel available at: {public_url}")
+        os.environ["PUBLIC_URL"] = public_url
+
+        # Print Local and Public URLs
+        local_url = f"http://localhost:{port}/swaig"
+        print(f"Local SWAIG URL: {local_url}")
+        print(f"Public SWAIG URL: {public_url}/swaig")
+
+    except Exception as e:
+        logging.error(f"Failed to start ngrok: {e}")
+    finally:
+        try:
+            app.run(host="0.0.0.0", port=port, debug=os.getenv("DEBUG"))
+        except KeyboardInterrupt:
+            logging.info("Shutting down Flask app.")
+        finally:
+            if ngrok_process:
+                ngrok_process.terminate()
+                logging.info("Ngrok process terminated.")

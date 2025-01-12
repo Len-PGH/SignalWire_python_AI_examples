@@ -52,6 +52,7 @@ requests
 python-dotenv
 signalwire
 signalwire_swaig
+pyngrok
 EOF
 
 pip3 install --upgrade pip
@@ -74,7 +75,7 @@ if ! command -v ngrok &> /dev/null; then
         sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
     echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | \
         sudo tee /etc/apt/sources.list.d/ngrok.list
-    sudo apt-get update && sudo apt-get install ngrok -y
+    sudo apt-get update && sudo apt-get dist-upgrade sudo apt-get install ngrok -y
     echo "ngrok installed successfully."
 else
     echo "ngrok found: $(ngrok --version)"
@@ -89,7 +90,7 @@ SIGNALWIRE_SPACE=your_space_name
 FROM_NUMBER=your_from_number
 NGROK_AUTH_TOKEN=your_ngrok_auth_token
 NGROK_DOMAIN=your_ngrok_domain
-NGROK_PATH=/usr/bin/ngrok
+NGROK_PATH=/usr/local/bin/ngrok
 HTTP_USERNAME=admin
 HTTP_PASSWORD=password
 DEBUG_WEBOOK_URL=http://localhost:5000
