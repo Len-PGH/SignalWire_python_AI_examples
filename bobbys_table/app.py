@@ -188,6 +188,7 @@ if __name__ == "__main__":
 
     except Exception as e:
         logging.error(f"Failed to start ngrok: {e}")
+        print("Ngrok failed. Running Flask app locally.")
     finally:
         try:
             app.run(host="0.0.0.0", port=port, debug=os.getenv("DEBUG"))
