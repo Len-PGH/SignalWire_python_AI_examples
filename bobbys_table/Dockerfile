@@ -49,7 +49,7 @@ RUN dos2unix install_bobbys_table.sh
 RUN chmod +x install_bobbys_table.sh
 
 # Execute the install script
-ADD install-roomie-serve.sh /home/bobby/SignalWire_python_AI_examples/bobbys_table/
+ADD install_bobbys_table.sh /home/bobby/SignalWire_python_AI_examples/bobbys_table/
 
 # Ensure the main Python script is executable
 RUN chmod +x app.py
