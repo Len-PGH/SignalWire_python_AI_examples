@@ -47,22 +47,18 @@ RUN sudo dos2unix install-roomie-serve.sh && chmod +x install-roomie-serve.sh
 COPY .env /home/roomie/SignalWire_python_AI_examples/roomie_serve/
 RUN sudo dos2unix /home/roomie/SignalWire_python_AI_examples/roomie_serve/.env
 # Execute the install script
-RUN ./install-roomie-serve.sh
+ADD install-roomie-serve.sh /home/roomie/SignalWire_python_AI_examples/roomie_serve/
 
 # Ensure the main Python script is executable
 RUN sudo chmod +x app.py
 
 # Copy the .env file into the roomie_serve directory
 COPY .env /home/roomie/SignalWire_python_AI_examples/roomie_serve/
-# RUN sudo source /etc/environment
 
-# Create a symbolic link for ngrok in /usr/local/bin
-# RUN sudo ln -s /home/roomie/SignalWire_python_AI_examples/roomie_serve/venv/bin/ngrok /usr/local/bin/ngrok
 RUN mkdir -p /home/roomie/.config/ngrok && chmod -R 755 /home/roomie/.config/ngrok
-
 
 # Expose the application port
 EXPOSE 5000
 
 # Define the entrypoint to activate the virtual environment and start the app
-ENTRYPOINT ["/bin/bash", "-c", "source venv/bin/activate && exec python3 app.py"]
+ENTRYPOINT ["/bin/bash", "-c", "source /home/roomie/SignalWire_python_AI_examples/roomie_serve/install-roomie-serve.sh && source venv/bin/activate && exec python3 app.py"]
