@@ -107,7 +107,7 @@ source .env
 set +a
 
 
-touch /home/bobby/.config/ngrok/ngrok.yml
+#touch /home/bobby/.config/ngrok/ngrok.yml
 env $(cat .env | xargs) ngrok config add-authtoken $NGROK_AUTH_TOKEN
 env $(cat .env | xargs) ngrok http --url=$NGROK_DOMAIN 5000 &
 #ngrok http -region=$NGROK_REGION -authtoken=$NGROK_AUTH_TOKEN 5000 &

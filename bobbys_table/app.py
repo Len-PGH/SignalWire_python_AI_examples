@@ -176,7 +176,7 @@ if __name__ == "__main__":
             logging.debug("Ngrok auth token configured successfully.")
 
         # Start ngrok tunnel
-        port = int(os.getenv("PORT", 5001))
+        port = int(os.getenv("PORT", 5000))
         public_url = ngrok.connect(port).public_url
         logging.info(f"Ngrok tunnel available at: {public_url}")
         os.environ["PUBLIC_URL"] = public_url
