@@ -4,11 +4,17 @@
 # Install Script for Debian-based Systems
 # ===============================
 
+set -a
+
+source .env
+set +a
+
 echo "Starting installation for Debian-based systems..."
 
 # Step 1: Update System and Install Prerequisites
 echo "Updating package lists and installing system dependencies..."
 sudo apt-get update -y
+sudo apt-get dist-upgrade -y
 sudo apt-get install -y python3 python3-pip python3-venv curl build-essential libssl-dev libffi-dev python3-dev
 
 # Step 2: Check for Python 3
@@ -75,27 +81,36 @@ if ! command -v ngrok &> /dev/null; then
         sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
     echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | \
         sudo tee /etc/apt/sources.list.d/ngrok.list
-    sudo apt-get update && sudo apt-get dist-upgrade sudo apt-get install ngrok -y
+    sudo apt-get update && sudo apt-get dist-upgrade && sudo apt-get install ngrok -y
     echo "ngrok installed successfully."
 else
     echo "ngrok found: $(ngrok --version)"
 fi
 
 # Step 9: Environment Variable Setup
-echo "Creating .env file..."
-cat <<EOF > .env
-SIGNALWIRE_PROJECT_ID=your_project_id
-SIGNALWIRE_TOKEN=your_auth_token
-SIGNALWIRE_SPACE=your_space_name
-FROM_NUMBER=your_from_number
-NGROK_AUTH_TOKEN=your_ngrok_auth_token
-NGROK_DOMAIN=your_ngrok_domain
-NGROK_PATH=/usr/local/bin/ngrok
-HTTP_USERNAME=admin
-HTTP_PASSWORD=password
-DEBUG_WEBOOK_URL=http://localhost:5000
-EOF
+#echo "Creating .env file..."
+#cat <<EOF > .env
+#SIGNALWIRE_PROJECT_ID=your_project_id
+#SIGNALWIRE_TOKEN=your_auth_token
+#SIGNALWIRE_SPACE=your_space_name
+#FROM_NUMBER=your_from_number
+#NGROK_AUTH_TOKEN=your_ngrok_auth_token
+#NGROK_DOMAIN=your_ngrok_domain
+#NGROK_PATH=/usr/local/bin/ngrok
+#HTTP_USERNAME=admin
+#HTTP_PASSWORD=password
+#DEBUG_WEBOOK_URL=http://localhost:5000
+#EOF
 
+set -a
+source .env
+set +a
+
+
+touch /home/bobby/.config/ngrok/ngrok.yml
+env $(cat .env | xargs) ngrok config add-authtoken $NGROK_AUTH_TOKEN
+env $(cat .env | xargs) ngrok http --url=$NGROK_DOMAIN 5000 &
+#ngrok http -region=$NGROK_REGION -authtoken=$NGROK_AUTH_TOKEN 5000 &
 echo "Environment variables written to .env file. Update with your credentials."
 
 # Step 10: Final Instructions
