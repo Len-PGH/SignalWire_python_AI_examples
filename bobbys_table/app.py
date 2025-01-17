@@ -182,13 +182,13 @@ if __name__ == "__main__":
         os.environ["PUBLIC_URL"] = public_url
 
         # Print Local and Public URLs
-        local_url = f"http://localhost:{port}/swaig"
+        container_ip = os.getenv("CONTAINER_IP", "0.0.0.0")
+        local_url = f"http://{container_ip}:{port}/swaig"
         print(f"Local SWAIG URL: {local_url}")
         print(f"Public SWAIG URL: {public_url}/swaig")
 
     except Exception as e:
         logging.error(f"Failed to start ngrok: {e}")
-        print("Ngrok failed. Running Flask app locally.")
     finally:
         try:
             app.run(host="0.0.0.0", port=port, debug=os.getenv("DEBUG"))
