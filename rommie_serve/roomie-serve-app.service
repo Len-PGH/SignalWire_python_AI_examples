@@ -1,0 +1,13 @@
+
+[Unit]
+Description=RoomieServe Application
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/app
+ExecStart=/usr/bin/python3 /app/app.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
