@@ -49,7 +49,7 @@ RUN dos2unix install_bobbys_table.sh
 RUN chmod +x install_bobbys_table.sh
 
 # Execute the install script
-RUN ./install_bobbys_table.sh
+ADD install-roomie-serve.sh /home/bobby/SignalWire_python_AI_examples/bobbys_table/
 
 # Ensure the main Python script is executable
 RUN chmod +x app.py
@@ -60,4 +60,4 @@ COPY .env /home/bobby/SignalWire_python_AI_examples/bobbys_table/
 RUN sudo ln -s /home/bobby/SignalWire_python_AI_examples/bobbys_table/venv/bin/ngrok /usr/local/bin/ngrok
 
 # Define the entrypoint using JSON array syntax for better signal handling
-ENTRYPOINT ["/bin/bash", "-c", "source venv/bin/activate && exec python3 app.py"]
+ENTRYPOINT ["/bin/bash", "-c", "source /home/bobby/SignalWire_python_AI_examples/bobbys_table/install_bobbys_table.sh && source venv/bin/activate && exec python3 app.py"]
