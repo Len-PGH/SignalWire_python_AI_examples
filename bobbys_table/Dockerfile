@@ -57,7 +57,7 @@ RUN chmod +x app.py
 # Copy the .env file into the bobbys_table directory
 
 COPY .env /home/bobby/SignalWire_python_AI_examples/bobbys_table/
-RUN sudo ln -s /home/bobby/SignalWire_python_AI_examples/bobbys_table/venv/bin/ngrok /usr/local/bin/ngrok
+# RUN sudo ln -s /home/bobby/SignalWire_python_AI_examples/bobbys_table/venv/bin/ngrok /usr/local/bin/ngrok
 
 # Define the entrypoint using JSON array syntax for better signal handling
 ENTRYPOINT ["/bin/bash", "-c", "source /home/bobby/SignalWire_python_AI_examples/bobbys_table/install_bobbys_table.sh && source venv/bin/activate && exec python3 app.py"]
