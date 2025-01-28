@@ -161,6 +161,10 @@ def send_mfa_code(to_number: str, meta_data: dict = None, **kwargs) -> dict:
     token=SWAIGArgument("string", "The 6-digit code from SMS", required=True)
 )
 def verify_mfa_code(token: str, meta_data: dict = None, **kwargs) -> dict:
+    """
+    Verifies the MFA code using the token and mfa_id.
+    The mfa_id will also be returned in the response for the AI agent.
+    """
     global LAST_MFA_ID
     logging.debug(f"Received token: {token}")
 
@@ -171,12 +175,13 @@ def verify_mfa_code(token: str, meta_data: dict = None, **kwargs) -> dict:
     try:
         logging.debug(f"Using mfa_id: {LAST_MFA_ID} to verify token: {token}")
         verification_response = mfa_util.verify_mfa(LAST_MFA_ID, token)
+        logging.debug(f"Using mfa_id: {LAST_MFA_ID} for verification with token: {token}")
         verification_response["mfa_id"] = LAST_MFA_ID
         logging.debug(f"Verification response: {verification_response}")
 
         if verification_response.get("success"):
-            return verification_response, 200
-        return {"success": False, "message": "Invalid MFA code. Please try again.", "mfa_id": LAST_MFA_ID}, 401
+      #      logging.debug(f"Returning response to AI agent: {{'success': False, 'message': 'Invalid MFA code. Please try again.', 'mfa_id': '{LAST_MFA_ID}'}}")
+            return {"success": False, "message": "Invalid MFA code. Please try again.", "mfa_id": LAST_MFA_ID}, 401
     except Exception as e:
         logging.error(f"Error verifying MFA code: {e}")
         return {"success": False, "message": "Internal server error occurred during verification."}, 500
@@ -190,18 +195,8 @@ def handle_swaig():
         logging.debug(f"Handling request at /swaig with action: {action}, function: {function_name}")
 
         if action == "get_signature":
-            # Mocked signature dictionary
-            signatures = {
-                "send_mfa_code": {
-                    "description": "Send an MFA code to a phone number.",
-                    "arguments": ["to_number"]
-                },
-                "verify_mfa_code": {
-                    "description": "Verify the MFA code.",
-                    "arguments": ["token"]
-                }
-            }
-            logging.debug("Returning mocked SWAIG signatures.")
+            signatures = swaig.get_signatures()
+            logging.debug("Returning SWAIG signatures.")
             return jsonify(signatures)
 
         if not function_name:
@@ -209,30 +204,14 @@ def handle_swaig():
             return jsonify({"response": "Function name not provided."}), 400
 
         logging.debug(f"Delegating to SWAIG handler for function: {function_name}")
-        try:
-            return swaig.handle_request(data)
-        except Exception as e:
-            logging.error(f"Error handling SWAIG function: {e}")
-            return jsonify({"response": "Failed to handle SWAIG function."}), 500
+        return swaig.handle_request(data)
     else:
-        # Mocked signatures for GET requests
-        signatures = {
-            "send_mfa_code": {
-                "description": "Send an MFA code to a phone number.",
-                "arguments": ["to_number"]
-            },
-            "verify_mfa_code": {
-                "description": "Verify the MFA code.",
-                "arguments": ["token"]
-            }
-        }
-        logging.debug("Returning mocked SWAIG signatures via GET.")
+        signatures = swaig.get_signatures()
+        logging.debug("Returning SWAIG signatures via GET.")
         return jsonify(signatures)
 
 if __name__ == "__main__":
-    ngrok_process = None  # Initialize ngrok_process to None
     try:
-        # Attempt to configure ngrok with the provided auth token
         subprocess.run(
             [NGROK_PATH, "config", "add-authtoken", NGROK_AUTH_TOKEN],
             check=True,
@@ -241,26 +220,15 @@ if __name__ == "__main__":
         )
         logging.debug("Ngrok auth token configured successfully.")
 
-        # Attempt to start ngrok tunnel on port 8888
-        ngrok_cmd = [NGROK_PATH, "http", f"--hostname={NGROK_DOMAIN}", "8888"]
+        ngrok_cmd = [NGROK_PATH, "http", "--domain=" + NGROK_DOMAIN, "8888"]
         ngrok_process = subprocess.Popen(ngrok_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         logging.info(f" * Started ngrok tunnel at {NGROK_URL}")
+        app.run(host="0.0.0.0", port=8888)
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to configure ngrok: {e.stderr.decode().strip()}")
-        logging.warning("Continuing to run Flask app without ngrok.")
-    except FileNotFoundError:
-        logging.error(f"Ngrok not found at path: {NGROK_PATH}")
-        logging.warning("Continuing to run Flask app without ngrok.")
     except Exception as e:
-        logging.error(f"Unexpected error while starting ngrok: {e}")
-        logging.warning("Continuing to run Flask app without ngrok.")
+        logging.error(f"Error starting ngrok or Flask app: {e}")
     finally:
-        try:
-            # Start the Flask app on port 8888
-            app.run(host="0.0.0.0", port=8888)
-        except KeyboardInterrupt:
-            logging.info("Shutting down Flask app.")
-        finally:
-            if ngrok_process:
-                ngrok_process.terminate()
-                logging.info("Ngrok process terminated.")
+        if 'ngrok_process' in locals():
+            ngrok_process.terminate()
+            logging.info("Ngrok process terminated.")
