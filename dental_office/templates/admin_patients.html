@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin - Patients</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #e7f0fd; }
+    .navbar-custom { background-color: #007bff; }
+    .navbar-custom .navbar-brand, .navbar-custom .nav-link { color: white; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-custom">
+    <a class="navbar-brand" href="{{ url_for('admin_patients') }}">Patient Admin</a>
+    <div class="ml-auto">
+      <a href="{{ url_for('admin_add_patient') }}" class="btn btn-light">Add Patient</a>
+    </div>
+  </nav>
+  <div class="container mt-4">
+    <h1>Patients</h1>
+    {% if patients %}
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Date of Birth</th>
+            <th>Gender</th>
+            <th>Phone</th>
+            <th>Email</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for patient in patients %}
+          <tr>
+            <td>{{ patient.id }}</td>
+            <td>{{ patient.first_name }}</td>
+            <td>{{ patient.last_name }}</td>
+            <td>{{ patient.date_of_birth }}</td>
+            <td>{{ patient.gender }}</td>
+            <td>{{ patient.phone }}</td>
+            <td>{{ patient.email }}</td>
+            <td>
+              <a href="{{ url_for('admin_patient_visits', patient_id=patient.id) }}" class="btn btn-secondary btn-sm">Visits</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No patients found.</p>
+    {% endif %}
+  </div>
+  <!-- Bootstrap JS and dependencies -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
