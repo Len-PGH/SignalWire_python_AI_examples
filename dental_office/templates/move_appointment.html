@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edit Appointment</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #e7f0fd; }
+    .navbar-custom { background-color: #007bff; }
+    .navbar-custom .navbar-brand, .navbar-custom .nav-link { color: white; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-custom">
+    <a class="navbar-brand" href="{{ url_for('index') }}">Appointments Calendar</a>
+  </nav>
+  <div class="container mt-4">
+    <h1>Edit Appointment</h1>
+    <form method="post" action="{{ url_for('move_appointment', appointment_id=appointment.id) }}">
+      <div class="form-group">
+        <label for="title">Appointment Title/Procedure:</label>
+        <input type="text" name="title" id="title" class="form-control" value="{{ appointment.title }}" required>
+      </div>
+      <div class="form-group">
+        <label for="appointment_date">Appointment Date:</label>
+        <input type="date" name="appointment_date" id="appointment_date" class="form-control" value="{{ appointment.start_time.split(' ')[0] }}" required>
+      </div>
+      <div class="form-group">
+        <label for="start_time">Start Time:</label>
+        <input type="time" name="start_time" id="start_time" class="form-control" value="{{ appointment.start_time.split(' ')[1] }}" required>
+      </div>
+      <div class="form-group">
+        <label for="end_time">End Time:</label>
+        <input type="time" name="end_time" id="end_time" class="form-control" value="{{ appointment.end_time.split(' ')[1] }}" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Update Appointment</button>
+    </form>
+    <a href="{{ url_for('index') }}" class="btn btn-link mt-3">Back to Calendar</a>
+  </div>
+  <!-- Bootstrap JS and dependencies -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
