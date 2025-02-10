@@ -9,19 +9,10 @@
   <!-- FullCalendar CSS -->
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
   <style>
-    body {
-      background-color: #e7f0fd;
-    }
-    .navbar-custom {
-      background-color: #007bff;
-    }
-    .navbar-custom .navbar-brand, .navbar-custom .nav-link {
-      color: white;
-    }
-    #calendar {
-      max-width: 900px;
-      margin: 40px auto;
-    }
+    body { background-color: #e7f0fd; }
+    .navbar-custom { background-color: #007bff; }
+    .navbar-custom .navbar-brand, .navbar-custom .nav-link { color: white; }
+    #calendar { max-width: 900px; margin: 40px auto; }
   </style>
 </head>
 <body>
@@ -53,23 +44,20 @@
           fetch("/api/appointments?token={{ api_token }}")
             .then(response => response.json())
             .then(data => {
-              // Convert stored datetime strings ("YYYY-MM-DD HH:MM") to ISO ("YYYY-MM-DDTHH:MM")
               const events = data.map(appointment => ({
                 id: appointment.id,
                 title: appointment.title,
                 start: appointment.start_time.replace(" ", "T"),
                 end: appointment.end_time.replace(" ", "T"),
                 extendedProps: {
-                  customer_name: appointment.customer_name,
-                  customer_phone: appointment.customer_phone,
-                  customer_email: appointment.customer_email
+                  customer_name: appointment.first_name + " " + appointment.last_name,
+                  customer_phone: appointment.patient_phone,
+                  customer_email: appointment.patient_email
                 }
               }));
               successCallback(events);
             })
-            .catch(error => {
-              failureCallback(error);
-            });
+            .catch(error => { failureCallback(error); });
         },
         eventClick: function(info) {
           var eventObj = info.event;
