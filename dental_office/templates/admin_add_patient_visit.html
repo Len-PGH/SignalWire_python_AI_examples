@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Add Patient Visit</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #e7f0fd; }
+    .navbar-custom { background-color: #007bff; }
+    .navbar-custom .navbar-brand, .navbar-custom .nav-link { color: white; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-custom">
+    <a class="navbar-brand" href="{{ url_for('admin_patients') }}">Patient Admin</a>
+  </nav>
+  <div class="container mt-4">
+    <h1>Add Visit for {{ patient.first_name }} {{ patient.last_name }}</h1>
+    <form method="post" action="{{ url_for('admin_add_patient_visit', patient_id=patient.id) }}">
+      <div class="form-group">
+        <label for="visit_date">Visit Date:</label>
+        <input type="date" name="visit_date" id="visit_date" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label for="visit_time">Visit Time:</label>
+        <input type="time" name="visit_time" id="visit_time" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label for="notes">Notes:</label>
+        <textarea name="notes" id="notes" class="form-control" rows="4"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Save Visit</button>
+    </form>
+    <a href="{{ url_for('admin_patient_visits', patient_id=patient.id) }}" class="btn btn-link mt-3">Back to Visits</a>
+  </div>
+  <!-- Bootstrap JS and dependencies -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
