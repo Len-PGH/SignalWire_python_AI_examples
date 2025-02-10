@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Add Appointment</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <!-- jQuery UI CSS -->
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+  <style>
+    body { background-color: #e7f0fd; }
+    .navbar-custom { background-color: #007bff; }
+    .navbar-custom .navbar-brand, .navbar-custom .nav-link { color: white; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-custom">
+    <a class="navbar-brand" href="{{ url_for('index') }}">Appointments Calendar</a>
+  </nav>
+  <div class="container mt-4">
+    <h1>Add Appointment</h1>
+    <form method="post" action="{{ url_for('add_appointment') }}">
+      <div class="form-group">
+        <label for="patient_search">Search Patient:</label>
+        <input type="text" id="patient_search" class="form-control" placeholder="Enter patient name">
+        <!-- Hidden field to store selected patient id -->
+        <input type="hidden" name="patient_id" id="patient_id" required>
+      </div>
+      <div class="form-group">
+        <label for="title">Appointment Title/Procedure:</label>
+        <input type="text" name="title" id="title" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label for="appointment_date">Appointment Date:</label>
+        <input type="date" name="appointment_date" id="appointment_date" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label for="start_time">Start Time:</label>
+        <input type="time" name="start_time" id="start_time" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label for="end_time">End Time:</label>
+        <input type="time" name="end_time" id="end_time" class="form-control" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Add Appointment</button>
+    </form>
+    <a href="{{ url_for('index') }}" class="btn btn-link mt-3">Back to Calendar</a>
+  </div>
+
+  <!-- jQuery and jQuery UI -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+  <script>
+    $(function() {
+      $("#patient_search").autocomplete({
+        source: function(request, response) {
+          $.ajax({
+            url: "/api/patients/search",
+            dataType: "json",
+            data: { q: request.term },
+            success: function(data) {
+              response($.map(data, function(item) {
+                return {
+                  label: item.first_name + " " + item.last_name,
+                  value: item.first_name + " " + item.last_name,
+                  id: item.id
+                };
+              }));
+            }
+          });
+        },
+        minLength: 2,
+        select: function(event, ui) {
+          $("#patient_id").val(ui.item.id);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
