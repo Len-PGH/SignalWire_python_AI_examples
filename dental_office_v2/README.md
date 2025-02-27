@@ -1,3 +1,6 @@
+SignalWire Dental Office
+----------------
+
 ### Section 1: Script Header and Directory Structure
 - **File**: None (just creates directories)
 - **Content**: `mkdir -p dental_app/templates dental_app/static/css dental_app/static/js`
