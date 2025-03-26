@@ -74,7 +74,7 @@ This version suits Unix/Mac users needing a reliable RTP audio solution.
 
 ## Why Two Scripts?
 
-Separate scripts ensure optimal performance on each platform. The key difference—keyboard input handling—stems from how Windows and Unix-like systems manage terminal I/O. Whether you’re testing audio streams or troubleshooting VoIP, these scripts offer a tailored, effective solution for your platform.
+Separate scripts ensure optimal performance on each platform. The key difference—keyboard input handling—stems from how Windows and Unix-like systems manage terminal I/O.
 
 ---
 
