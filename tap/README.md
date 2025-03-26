@@ -6,6 +6,8 @@
 - [Windows Version](#windows-version)
 - [Mac Version](#mac-version)
 - [Why Two Scripts?](#why-two-scripts)
+- [How to Use](#how-to-use)
+- [Utilizing the `tap` Method in SWML](#utilizing-the-tap-method-in-swml)
 
 ---
 
@@ -19,7 +21,7 @@ Both scripts handle the following tasks:
 
 - **RTP Packet Reception**:  
   Listens for UDP-based RTP packets on a specified IP and port (e.g., `0.0.0.0:5004`).
-  
+
 - **Audio Decoding**:  
   Converts PCMU audio (payload type 0) to 16-bit PCM using a μ-law lookup table for playback.
 
@@ -35,7 +37,7 @@ The scripts differ primarily in how they handle keyboard input, due to platform-
 
 ## Windows Version
 
-The Windows script  (`setup-win.py`) uses the `msvcrt` module, which is exclusive to Windows, for non-blocking keyboard input.
+The Windows script (`setup-win.py`) uses the `msvcrt` module, exclusive to Windows, for non-blocking keyboard input.
 
 ### Key Features:
 - **Keyboard Input**:  
@@ -55,7 +57,7 @@ This version is ideal for Windows users monitoring RTP audio streams, such as in
 
 ## Mac Version
 
-The Unix/Mac  (`setup-mac.py`) script uses `termios` and `tty` modules, standard on Unix-like systems (e.g., macOS, Linux), for keyboard input in raw mode.
+The Unix/Mac script (`setup-mac.py`) uses `termios` and `tty` modules, standard on Unix-like systems (e.g., macOS, Linux), for keyboard input in raw mode.
 
 ### Key Features:
 - **Keyboard Input**:  
@@ -76,11 +78,55 @@ Separate scripts ensure optimal performance on each platform. The key difference
 
 ---
 
-How to Use
+## How to Use
 
-    Run the Script: Execute it in a Windows command prompt or terminal.
-    Controls:
-        Left Arrow: Switch to the previous active SSRC.
-        Right Arrow: Switch to the next active SSRC.
-        'q': Exit the script.
-    Requirements: Ensure PyAudio is installed (pip install pyaudio) and that your system has an audio output device.
+- **Run the Script**: Execute it in a Windows command prompt or terminal.
+- **Controls**:
+  - **Left Arrow**: Switch to the previous active SSRC.
+  - **Right Arrow**: Switch to the next active SSRC.
+  - **'q'**: Exit the script.
+- **Requirements**: Ensure PyAudio is installed (`pip install pyaudio`) and your system has an audio output device.
+
+---
+
+## Utilizing the `tap` Method in SWML
+
+The `tap` method in SignalWire Markup Language (SWML) enables developers to stream call audio to an external destination via WebSocket or RTP. This functionality is essential for applications requiring real-time audio processing, such as call monitoring or recording.
+
+### Key Parameters
+
+- **uri** (string, required): Specifies the destination for the audio stream. Supported formats include:
+  - `rtp://IP:port`
+  - `ws://example.com`
+  - `wss://example.com`
+
+- **control_id** (string, optional): An identifier for the tap session, useful for managing or stopping the tap later. If not provided, a unique ID is auto-generated and stored in the `tap_control_id` variable.
+
+- **direction** (string, optional): Defines which part of the audio to tap:
+  - `speak`: Audio sent from the party.
+  - `listen`: Audio received by the party.
+  - `both`: Both incoming and outgoing audio.
+
+  Default is `speak`.
+
+- **codec** (string, optional): Specifies the audio codec, either `PCMU` or `PCMA`. Default is `PCMU`.
+
+- **rtp_ptime** (integer, optional): Applicable for RTP streams; sets the packetization time in milliseconds. Default is 20 ms.
+
+### Example Usage
+
+To initiate a WebSocket Secure (WSS) tap:
+
+```json
+{
+  "version": "1.0.0",
+  "sections": {
+    "main": [
+      {
+        "tap": {
+          "uri": "rtp://IP:port/tap"
+        }
+      }
+    ]
+  }
+}
