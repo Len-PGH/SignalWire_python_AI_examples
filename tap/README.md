@@ -118,7 +118,7 @@ The `tap` method in SignalWire Markup Language (SWML) enables developers to stre
 
 ### Example Usage
 
-To initiate a WebSocket Secure (WSS) tap:
+To initiate a (RTP) tap:
 
 ```json
 {
