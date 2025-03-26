@@ -4,7 +4,9 @@
     "main": [
       {
         "tap": {
-          "uri": "rtp://127.0.0.1/tap"
+          "uri": "rtp://127.0.0.1/tap",
+          "direction": "both"
+        }
         }
       }
     ]
