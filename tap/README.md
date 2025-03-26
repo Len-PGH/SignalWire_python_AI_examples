@@ -1,5 +1,8 @@
 # Listening to RTP Audio Streams with Python: Windows and Unix/Mac Solutions
 
+<img src="https://github.com/user-attachments/assets/11558fc8-9fc5-449d-9a9a-4f495f9d140b" alt="image" style="width:20%;">
+
+
 **Table of Contents**
 
 - [Core Functionality](#core-functionality)
