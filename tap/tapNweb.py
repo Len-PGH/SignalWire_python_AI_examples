@@ -67,13 +67,25 @@ def listen_rtp():
             data, addr = sock.recvfrom(2048)
             rtp_header = data[:12]
             ssrc = struct.unpack('!I', rtp_header[8:12])[0]
-            active_ssrcs[ssrc] = time.time()
+
+            if ssrc not in active_ssrcs:
+                active_ssrcs[ssrc] = {
+                    "packet_count": 0,
+                    "first_seen": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()),
+                    "last_seen": None,
+                    "source_ip": addr[0],
+                    "source_port": addr[1],
+                }
+
+            active_ssrcs[ssrc]["packet_count"] += 1
+            active_ssrcs[ssrc]["last_seen"] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
 
             if ssrc == listen_ssrc:
                 pcmu_payload = data[12:]
                 pcm_samples = [ULAW_TO_PCM_TABLE[byte] for byte in pcmu_payload]
                 pcm_bytes = struct.pack(f"<{len(pcm_samples)}h", *pcm_samples)
                 stream.write(pcm_bytes)
+
         except socket.timeout:
             continue
 
@@ -83,6 +95,7 @@ def listen_rtp():
     sock.close()
 
 @app.route('/')
+# Flask routes are already fully defined above
 def index():
     html = '''
     <!DOCTYPE html>
@@ -95,7 +108,6 @@ def index():
                 const data = await response.json();
                 document.getElementById('ssrc_table').innerHTML = data.html;
             }, 2000);
-
             function listen(ssrc) {
                 fetch('/listen/' + ssrc, {method: 'POST'});
             }
