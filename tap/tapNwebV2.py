@@ -15,7 +15,7 @@ RTP_PORT = 5004     # RTP port to receive packets
 running = False
 active_ssrcs = {}   # Dictionary to track SSRCs and their metadata
 listen_ssrc = None  # Currently selected SSRC for listening
-audio_queue = Queue()  # Queue to hold PCM audio data for streaming
+audio_chunk_queue = Queue()  # Queue to hold PCM audio chunks for streaming
 
 # μ-law to PCM conversion table (G.711 μ-law to 16-bit linear PCM)
 ULAW_TO_PCM_TABLE = [
@@ -87,46 +87,47 @@ def listen_rtp():
                 print(f"Processing audio for SSRC {ssrc}, payload length: {len(pcmu_payload)}")
                 pcm_samples = [ULAW_TO_PCM_TABLE[byte] for byte in pcmu_payload]
                 pcm_bytes = struct.pack(f"<{len(pcm_samples)}h", *pcm_samples)
-                print(f"Putting {len(pcm_bytes)} bytes into audio_queue")
-                audio_queue.put(pcm_bytes)
+                audio_chunk_queue.put(pcm_bytes)
 
         except socket.timeout:
             continue
 
     sock.close()
 
-def create_wav_header():
-    """Generate a WAV header for streaming audio."""
+def create_small_wav_header(duration=0.5):
+    """Generate a WAV header for a small audio chunk."""
     sample_rate = 8000
     bits_per_sample = 16
     num_channels = 1
-    block_align = num_channels * (bits_per_sample // 8)
-    byte_rate = sample_rate * block_align
-
+    num_samples = int(sample_rate * duration)
+    data_size = num_samples * num_channels * (bits_per_sample // 8)
     header = (
         b'RIFF' +
-        struct.pack('<I', 0xFFFFFFFF) +  # RIFF chunk size (unknown for streaming)
+        struct.pack('<I', 36 + data_size) +
         b'WAVE' +
         b'fmt ' +
-        struct.pack('<I', 16) +          # fmt chunk size
-        struct.pack('<HHIIHH', 1, num_channels, sample_rate, byte_rate, block_align, bits_per_sample) +
+        struct.pack('<I', 16) +  # Format chunk size
+        struct.pack('<HHIIHH', 1, num_channels, sample_rate, 
+                    sample_rate * num_channels * (bits_per_sample // 8), 
+                    num_channels * (bits_per_sample // 8), bits_per_sample) +
         b'data' +
-        struct.pack('<I', 0xFFFFFFFF)    # data chunk size (unknown for streaming)
+        struct.pack('<I', data_size)
     )
     return header
 
-@app.route('/stream.wav')
-def stream_wav():
-    """Stream audio data as a WAV file to the browser."""
-    def generate():
-        yield create_wav_header()
-        while True:
-            try:
-                data = audio_queue.get(timeout=1)
-                yield data
-            except Queue.Empty:
-                continue
-    return Response(generate(), mimetype='audio/wav')
+@app.route('/audio_chunk')
+def get_audio_chunk():
+    """Serve a small WAV audio chunk (0.5 seconds)."""
+    chunk_data = b''
+    target_size = 8000  # 0.5s at 8000 Hz, 16-bit = 8000 bytes
+    while len(chunk_data) < target_size and not audio_chunk_queue.empty():
+        chunk = audio_chunk_queue.get()
+        chunk_data += chunk
+    if len(chunk_data) < target_size:
+        # Pad with silence if insufficient data
+        chunk_data += b'\0' * (target_size - len(chunk_data))
+    header = create_small_wav_header()
+    return Response(header + chunk_data, mimetype='audio/wav')
 
 @app.route('/')
 def index():
@@ -158,7 +159,54 @@ def index():
             }
         </style>
         <script>
-            let currentAudio = null;
+            let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            let currentSource = null;
+            let nextBuffer = null;
+            let isPlaying = false;
+
+            async function playAudio() {
+                if (currentSource) {
+                    currentSource.stop();
+                }
+                isPlaying = true;
+                await fetchAndQueueChunk();  // Get the first chunk
+                playNextChunk();  // Start playback loop
+            }
+
+            async function fetchAndQueueChunk() {
+                try {
+                    const response = await fetch('/audio_chunk');
+                    if (response.ok) {
+                        const arrayBuffer = await response.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        nextBuffer = audioBuffer;
+                    }
+                } catch (error) {
+                    console.error('Error fetching or decoding audio chunk:', error);
+                }
+            }
+
+            function playNextChunk() {
+                if (!isPlaying) return;
+                if (nextBuffer) {
+                    currentSource = audioContext.createBufferSource();
+                    currentSource.buffer = nextBuffer;
+                    currentSource.connect(audioContext.destination);
+                    currentSource.start();
+                    nextBuffer = null;
+                    fetchAndQueueChunk();  // Pre-fetch next chunk
+                    currentSource.onended = playNextChunk;
+                } else {
+                    setTimeout(playNextChunk, 100);  // Wait if no buffer ready
+                }
+            }
+
+            function stopAudio() {
+                isPlaying = false;
+                if (currentSource) {
+                    currentSource.stop();
+                }
+            }
 
             // Update SSRC table every 2 seconds
             setInterval(async () => {
@@ -173,17 +221,12 @@ def index():
                     .then(response => response.json())
                     .then(data => {
                         if (data.listening_ssrc) {
-                            if (currentAudio) {
-                                currentAudio.pause();
-                            }
-                            currentAudio = new Audio('/stream.wav');
-                            currentAudio.play().catch(e => console.log("Play error:", e));
+                            playAudio();
                         } else {
-                            if (currentAudio) {
-                                currentAudio.pause();
-                            }
+                            stopAudio();
                         }
-                    });
+                    })
+                    .catch(error => console.error('Error:', error));
             }
         </script>
     </head>
