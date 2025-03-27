@@ -16,6 +16,8 @@ RATE = 8000
 CHUNK = 160
 
 running = False
+current_ssrc = None
+ssrc_info = {}
 
 ULAW_TO_PCM_TABLE = [
     -32124, -31100, -30076, -29052, -28028, -27004, -25980, -24956,
@@ -48,12 +50,12 @@ ULAW_TO_PCM_TABLE = [
     620, 588, 556, 524, 492, 460, 428, 396,
     372, 356, 340, 324, 308, 292, 276, 260,
     244, 228, 212, 196, 180, 164, 148, 132,
-    120, 112, 104, 96, 88, 80, 72, 64,
-    56, 48, 40, 32, 24, 16, 8, 0
+    120, -112, -104, -96, -88, -80, -72, -64,
+    -56, -48, -40, -32, -24, -16, -8, 0
 ]
 
 def listen_rtp():
-    global running
+    global running, current_ssrc, ssrc_info
     audio = pyaudio.PyAudio()
     stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True)
 
@@ -64,6 +66,11 @@ def listen_rtp():
     while running:
         try:
             data, addr = sock.recvfrom(2048)
+            rtp_header = data[:12]
+            ssrc = struct.unpack('!I', rtp_header[8:12])[0]
+            current_ssrc = ssrc
+            ssrc_info['current'] = ssrc
+
             pcmu_payload = data[12:]
             pcm_samples = [ULAW_TO_PCM_TABLE[byte] for byte in pcmu_payload]
             pcm_bytes = struct.pack(f"<{len(pcm_samples)}h", *pcm_samples)
@@ -86,14 +93,26 @@ def index():
     <html>
     <head>
         <title>RTP Listener</title>
+        <script>
+            setInterval(async () => {
+                const response = await fetch('/ssrc');
+                const data = await response.json();
+                document.getElementById('ssrc').textContent = data.current || 'None';
+            }, 1000);
+        </script>
     </head>
     <body>
         <h2>RTP Listener Control</h2>
         <button onclick="fetch('/start', {method: 'POST'})">Start Listening</button>
         <button onclick="fetch('/stop', {method: 'POST'})">Stop Listening</button>
+        <p>Current SSRC: <span id="ssrc">None</span></p>
     </body>
     </html>
     ''')
+
+@app.route('/ssrc')
+def get_ssrc():
+    return jsonify(ssrc_info)
 
 @app.route('/start', methods=['POST'])
 def start_listening():
