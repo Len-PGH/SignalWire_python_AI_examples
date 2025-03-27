@@ -101,6 +101,28 @@ def index():
     <html>
     <head>
         <title>RTP Listener</title>
+        <!-- Bootstrap CSS -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+            body {
+                background: linear-gradient(135deg, #007bff, #6c757d);
+                color: white;
+            }
+            .btn-custom {
+                background-color: #0056b3;
+                border-color: #0056b3;
+                color: white;
+            }
+            .btn-custom:hover {
+                background-color: #004085;
+                border-color: #004085;
+                color: white;
+            }
+            table {
+                background-color: rgba(255,255,255,0.9);
+                color: black;
+            }
+        </style>
         <script>
             setInterval(async () => {
                 const response = await fetch('/ssrc');
@@ -112,11 +134,13 @@ def index():
             }
         </script>
     </head>
-    <body>
+    <body class="container py-5">
         <h2>RTP Listener Control</h2>
-        <button onclick="fetch('/start', {method: 'POST'})">Start Listening</button>
-        <button onclick="fetch('/stop', {method: 'POST'})">Stop Listening</button>
-        <table border="1">
+        <div class="mb-3">
+            <button class="btn btn-custom me-2" onclick="fetch('/start', {method: 'POST'})">Start Listening</button>
+            <button class="btn btn-custom" onclick="fetch('/stop', {method: 'POST'})">Stop Listening</button>
+        </div>
+        <table class="table table-bordered">
             <thead>
                 <tr>
                     <th>SSRC</th>
@@ -145,7 +169,7 @@ def get_ssrc():
         f'<td>{info["last_seen"]}</td>'
         f'<td>{info["source_ip"]}</td>'
         f'<td>{info["source_port"]}</td>'
-        f'<td><button onclick="listen({ssrc})">{"Listening" if ssrc == listen_ssrc else "Listen"}</button></td>'
+        f'<td><button class="btn btn-sm btn-custom" onclick="listen({ssrc})">{"Listening" if ssrc == listen_ssrc else "Listen"}</button></td>'
         f'</tr>'
         for ssrc, info in active_ssrcs.items()
     )
