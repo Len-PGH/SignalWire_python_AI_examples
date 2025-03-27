@@ -95,7 +95,6 @@ def listen_rtp():
     sock.close()
 
 @app.route('/')
-# Flask routes are already fully defined above
 def index():
     html = '''
     <!DOCTYPE html>
@@ -118,7 +117,17 @@ def index():
         <button onclick="fetch('/start', {method: 'POST'})">Start Listening</button>
         <button onclick="fetch('/stop', {method: 'POST'})">Stop Listening</button>
         <table border="1">
-            <thead><tr><th>SSRC</th><th>Action</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>SSRC</th>
+                    <th>Packets Received</th>
+                    <th>First Seen</th>
+                    <th>Last Activity</th>
+                    <th>Source IP</th>
+                    <th>Source Port</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
             <tbody id="ssrc_table"></tbody>
         </table>
     </body>
@@ -128,14 +137,25 @@ def index():
 
 @app.route('/ssrc')
 def get_ssrc():
-    rows = ''.join(f'<tr><td>{s}</td><td><button onclick="listen({s})">Listen</button></td></tr>' for s in active_ssrcs)
+    rows = ''.join(
+        f'<tr>'
+        f'<td>{ssrc}</td>'
+        f'<td>{info["packet_count"]}</td>'
+        f'<td>{info["first_seen"]}</td>'
+        f'<td>{info["last_seen"]}</td>'
+        f'<td>{info["source_ip"]}</td>'
+        f'<td>{info["source_port"]}</td>'
+        f'<td><button onclick="listen({ssrc})">{'Listening' if ssrc == listen_ssrc else 'Listen'}</button></td>'
+        f'</tr>'
+        for ssrc, info in active_ssrcs.items()
+    )
     return jsonify({"html": rows})
 
 @app.route('/listen/<int:ssrc>', methods=['POST'])
 def select_ssrc(ssrc):
     global listen_ssrc
-    listen_ssrc = ssrc
-    return jsonify({"status": "listening", "ssrc": ssrc})
+    listen_ssrc = None if listen_ssrc == ssrc else ssrc
+    return jsonify({"status": "updated", "listening_ssrc": listen_ssrc})
 
 @app.route('/start', methods=['POST'])
 def start_listening():
@@ -153,3 +173,4 @@ def stop_listening():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8080)
+
