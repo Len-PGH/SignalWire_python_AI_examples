@@ -7,18 +7,17 @@ from queue import Queue
 
 app = Flask(__name__)
 
-RTP_IP = "0.0.0.0"
-RTP_PORT = 5004
+# Configuration
+RTP_IP = "0.0.0.0"  # Listen on all interfaces
+RTP_PORT = 5004     # RTP port to receive packets
 
-FORMAT = pyaudio.paInt16  # Note: pyaudio is no longer needed, but kept for reference
-CHANNELS = 1
-RATE = 8000
-
+# Global variables
 running = False
-active_ssrcs = {}
-listen_ssrc = None
-audio_queue = Queue()
+active_ssrcs = {}   # Dictionary to track SSRCs and their metadata
+listen_ssrc = None  # Currently selected SSRC for listening
+audio_queue = Queue()  # Queue to hold PCM audio data for streaming
 
+# μ-law to PCM conversion table (G.711 μ-law to 16-bit linear PCM)
 ULAW_TO_PCM_TABLE = [
     -32124, -31100, -30076, -29052, -28028, -27004, -25980, -24956,
     -23932, -22908, -21884, -20860, -19836, -18812, -17788, -16764,
@@ -50,11 +49,12 @@ ULAW_TO_PCM_TABLE = [
     620, 588, 556, 524, 492, 460, 428, 396,
     372, 356, 340, 324, 308, 292, 276, 260,
     244, 228, 212, 196, 180, 164, 148, 132,
-    120, -112, -104, -96, -88, -80, -72, -64,
-    -56, -48, -40, -32, -24, -16, -8, 0
+    120, 112, 104, 96, 88, 80, 72, 64,
+    56, 48, 40, 32, 24, 16, 8, 0
 ]
 
 def listen_rtp():
+    """Receive RTP packets and process audio for the selected SSRC."""
     global running, active_ssrcs, listen_ssrc
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((RTP_IP, RTP_PORT))
@@ -63,9 +63,12 @@ def listen_rtp():
     while running:
         try:
             data, addr = sock.recvfrom(2048)
+            if len(data) < 12:  # Minimum RTP header size
+                continue
             rtp_header = data[:12]
             ssrc = struct.unpack('!I', rtp_header[8:12])[0]
 
+            # Update SSRC metadata
             if ssrc not in active_ssrcs:
                 active_ssrcs[ssrc] = {
                     "packet_count": 0,
@@ -78,10 +81,13 @@ def listen_rtp():
             active_ssrcs[ssrc]["packet_count"] += 1
             active_ssrcs[ssrc]["last_seen"] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
 
+            # Process audio for the selected SSRC
             if ssrc == listen_ssrc:
-                pcmu_payload = data[12:]
+                pcmu_payload = data[12:]  # Extract payload after RTP header
+                print(f"Processing audio for SSRC {ssrc}, payload length: {len(pcmu_payload)}")
                 pcm_samples = [ULAW_TO_PCM_TABLE[byte] for byte in pcmu_payload]
                 pcm_bytes = struct.pack(f"<{len(pcm_samples)}h", *pcm_samples)
+                print(f"Putting {len(pcm_bytes)} bytes into audio_queue")
                 audio_queue.put(pcm_bytes)
 
         except socket.timeout:
@@ -90,6 +96,7 @@ def listen_rtp():
     sock.close()
 
 def create_wav_header():
+    """Generate a WAV header for streaming audio."""
     sample_rate = 8000
     bits_per_sample = 16
     num_channels = 1
@@ -98,18 +105,19 @@ def create_wav_header():
 
     header = (
         b'RIFF' +
-        struct.pack('<I', 0xFFFFFFFF) +
+        struct.pack('<I', 0xFFFFFFFF) +  # RIFF chunk size (unknown for streaming)
         b'WAVE' +
         b'fmt ' +
-        struct.pack('<I', 16) +
+        struct.pack('<I', 16) +          # fmt chunk size
         struct.pack('<HHIIHH', 1, num_channels, sample_rate, byte_rate, block_align, bits_per_sample) +
         b'data' +
-        struct.pack('<I', 0xFFFFFFFF)
+        struct.pack('<I', 0xFFFFFFFF)    # data chunk size (unknown for streaming)
     )
     return header
 
 @app.route('/stream.wav')
 def stream_wav():
+    """Stream audio data as a WAV file to the browser."""
     def generate():
         yield create_wav_header()
         while True:
@@ -118,11 +126,11 @@ def stream_wav():
                 yield data
             except queue.Empty:
                 continue
-    
     return Response(generate(), mimetype='audio/wav')
 
 @app.route('/')
 def index():
+    """Render the main page with SSRC table and audio controls."""
     html = '''
     <!DOCTYPE html>
     <html>
@@ -150,13 +158,25 @@ def index():
             }
         </style>
         <script>
+            // Update SSRC table every 2 seconds
             setInterval(async () => {
                 const response = await fetch('/ssrc');
                 const data = await response.json();
                 document.getElementById('ssrc_table').innerHTML = data.html;
             }, 2000);
+
+            // Handle Listen button click to select SSRC and control audio
             function listen(ssrc) {
-                fetch('/listen/' + ssrc, {method: 'POST'});
+                const audio = document.getElementById('rtpAudio');
+                fetch('/listen/' + ssrc, {method: 'POST'})
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.listening_ssrc) {
+                            audio.play().catch(e => console.log("Play error:", e));
+                        } else {
+                            audio.pause();
+                        }
+                    });
             }
         </script>
     </head>
@@ -166,7 +186,7 @@ def index():
             <button class="btn btn-custom me-2" onclick="fetch('/start', {method: 'POST'})">Start Listening</button>
             <button class="btn btn-custom" onclick="fetch('/stop', {method: 'POST'})">Stop Listening</button>
         </div>
-        <audio controls>
+        <audio id="rtpAudio" controls>
             <source src="/stream.wav" type="audio/wav">
             Your browser does not support the audio element.
         </audio>
@@ -191,6 +211,7 @@ def index():
 
 @app.route('/ssrc')
 def get_ssrc():
+    """Return HTML for the SSRC table."""
     rows = ''.join(
         f'<tr>'
         f'<td>{ssrc}</td>'
@@ -207,12 +228,14 @@ def get_ssrc():
 
 @app.route('/listen/<int:ssrc>', methods=['POST'])
 def select_ssrc(ssrc):
+    """Toggle the selected SSRC for listening."""
     global listen_ssrc
     listen_ssrc = None if listen_ssrc == ssrc else ssrc
     return jsonify({"status": "updated", "listening_ssrc": listen_ssrc})
 
 @app.route('/start', methods=['POST'])
 def start_listening():
+    """Start the RTP listener thread."""
     global running
     if not running:
         running = True
@@ -221,6 +244,7 @@ def start_listening():
 
 @app.route('/stop', methods=['POST'])
 def stop_listening():
+    """Stop the RTP listener."""
     global running
     running = False
     return jsonify({"status": "stopped"})
