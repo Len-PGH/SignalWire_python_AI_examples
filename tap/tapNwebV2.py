@@ -124,13 +124,13 @@ def stream_wav():
             try:
                 data = audio_queue.get(timeout=1)
                 yield data
-            except queue.Empty:
+            except Queue.Empty:
                 continue
     return Response(generate(), mimetype='audio/wav')
 
 @app.route('/')
 def index():
-    """Render the main page with SSRC table and audio controls."""
+    """Render the main page with SSRC table and controls."""
     html = '''
     <!DOCTYPE html>
     <html>
@@ -158,6 +158,8 @@ def index():
             }
         </style>
         <script>
+            let currentAudio = null;
+
             // Update SSRC table every 2 seconds
             setInterval(async () => {
                 const response = await fetch('/ssrc');
@@ -167,14 +169,19 @@ def index():
 
             // Handle Listen button click to select SSRC and control audio
             function listen(ssrc) {
-                const audio = document.getElementById('rtpAudio');
                 fetch('/listen/' + ssrc, {method: 'POST'})
                     .then(response => response.json())
                     .then(data => {
                         if (data.listening_ssrc) {
-                            audio.play().catch(e => console.log("Play error:", e));
+                            if (currentAudio) {
+                                currentAudio.pause();
+                            }
+                            currentAudio = new Audio('/stream.wav');
+                            currentAudio.play().catch(e => console.log("Play error:", e));
                         } else {
-                            audio.pause();
+                            if (currentAudio) {
+                                currentAudio.pause();
+                            }
                         }
                     });
             }
@@ -186,10 +193,6 @@ def index():
             <button class="btn btn-custom me-2" onclick="fetch('/start', {method: 'POST'})">Start Listening</button>
             <button class="btn btn-custom" onclick="fetch('/stop', {method: 'POST'})">Stop Listening</button>
         </div>
-        <audio id="rtpAudio" controls>
-            <source src="/stream.wav" type="audio/wav">
-            Your browser does not support the audio element.
-        </audio>
         <table class="table table-bordered">
             <thead>
                 <tr>
