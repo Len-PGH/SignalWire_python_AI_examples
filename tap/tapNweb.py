@@ -13,11 +13,10 @@ RTP_PORT = 5004
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 8000
-CHUNK = 160
 
 running = False
-current_ssrc = None
-ssrc_info = {}
+active_ssrcs = {}
+listen_ssrc = None
 
 ULAW_TO_PCM_TABLE = [
     -32124, -31100, -30076, -29052, -28028, -27004, -25980, -24956,
@@ -55,7 +54,7 @@ ULAW_TO_PCM_TABLE = [
 ]
 
 def listen_rtp():
-    global running, current_ssrc, ssrc_info
+    global running, active_ssrcs, listen_ssrc
     audio = pyaudio.PyAudio()
     stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True)
 
@@ -68,18 +67,15 @@ def listen_rtp():
             data, addr = sock.recvfrom(2048)
             rtp_header = data[:12]
             ssrc = struct.unpack('!I', rtp_header[8:12])[0]
-            current_ssrc = ssrc
-            ssrc_info['current'] = ssrc
+            active_ssrcs[ssrc] = time.time()
 
-            pcmu_payload = data[12:]
-            pcm_samples = [ULAW_TO_PCM_TABLE[byte] for byte in pcmu_payload]
-            pcm_bytes = struct.pack(f"<{len(pcm_samples)}h", *pcm_samples)
-            stream.write(pcm_bytes)
+            if ssrc == listen_ssrc:
+                pcmu_payload = data[12:]
+                pcm_samples = [ULAW_TO_PCM_TABLE[byte] for byte in pcmu_payload]
+                pcm_bytes = struct.pack(f"<{len(pcm_samples)}h", *pcm_samples)
+                stream.write(pcm_bytes)
         except socket.timeout:
             continue
-        except Exception as e:
-            print(f"Error: {e}")
-            break
 
     stream.stop_stream()
     stream.close()
@@ -88,7 +84,7 @@ def listen_rtp():
 
 @app.route('/')
 def index():
-    return render_template_string('''
+    html = '''
     <!DOCTYPE html>
     <html>
     <head>
@@ -97,22 +93,37 @@ def index():
             setInterval(async () => {
                 const response = await fetch('/ssrc');
                 const data = await response.json();
-                document.getElementById('ssrc').textContent = data.current || 'None';
-            }, 1000);
+                document.getElementById('ssrc_table').innerHTML = data.html;
+            }, 2000);
+
+            function listen(ssrc) {
+                fetch('/listen/' + ssrc, {method: 'POST'});
+            }
         </script>
     </head>
     <body>
         <h2>RTP Listener Control</h2>
         <button onclick="fetch('/start', {method: 'POST'})">Start Listening</button>
         <button onclick="fetch('/stop', {method: 'POST'})">Stop Listening</button>
-        <p>Current SSRC: <span id="ssrc">None</span></p>
+        <table border="1">
+            <thead><tr><th>SSRC</th><th>Action</th></tr></thead>
+            <tbody id="ssrc_table"></tbody>
+        </table>
     </body>
     </html>
-    ''')
+    '''
+    return render_template_string(html)
 
 @app.route('/ssrc')
 def get_ssrc():
-    return jsonify(ssrc_info)
+    rows = ''.join(f'<tr><td>{s}</td><td><button onclick="listen({s})">Listen</button></td></tr>' for s in active_ssrcs)
+    return jsonify({"html": rows})
+
+@app.route('/listen/<int:ssrc>', methods=['POST'])
+def select_ssrc(ssrc):
+    global listen_ssrc
+    listen_ssrc = ssrc
+    return jsonify({"status": "listening", "ssrc": ssrc})
 
 @app.route('/start', methods=['POST'])
 def start_listening():
