@@ -145,7 +145,7 @@ def get_ssrc():
         f'<td>{info["last_seen"]}</td>'
         f'<td>{info["source_ip"]}</td>'
         f'<td>{info["source_port"]}</td>'
-        f'<td><button onclick="listen({ssrc})">{'Listening' if ssrc == listen_ssrc else 'Listen'}</button></td>'
+        f'<td><button onclick="listen({ssrc})">{"Listening" if ssrc == listen_ssrc else "Listen"}</button></td>'
         f'</tr>'
         for ssrc, info in active_ssrcs.items()
     )
@@ -173,4 +173,3 @@ def stop_listening():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8080)
-
